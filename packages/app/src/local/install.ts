@@ -5,11 +5,12 @@ import { createStorage } from 'unstorage'
 import { createApp } from 'vue'
 import { installAppContext, settingsCredentials } from '../app-context'
 import { i18n } from '../i18n'
+import { setLlmFetch } from '../state/llm-model'
 import { connectLocal } from './connection'
 import { localRpcKey } from './local-rpc-key'
 import LocalAuthGate from './LocalAuthGate.vue'
 import { localRoutes } from './pages'
-import { createRpcCredentials, createRpcDriver } from './rpc-backends'
+import { createRpcCredentials, createRpcDriver, createRpcFetch } from './rpc-backends'
 
 /** Until the server trusts this tab, every RPC call fails: ask for the terminal's code first. */
 async function ensureTrusted(client: Awaited<ReturnType<typeof connectLocal>>['client']): Promise<void> {
@@ -40,6 +41,8 @@ export async function installLocal(app: App, router: Router): Promise<void> {
     credentials: createRpcCredentials(rpc, settingsCredentials),
   })
   app.provide(localRpcKey, rpc)
+  // Some providers (OpenCode Go) refuse browser requests; the server sends them instead.
+  setLlmFetch(createRpcFetch(rpc))
 
   for (const route of localRoutes(() => import('../pages-local/diff.vue')))
     router.addRoute(route)

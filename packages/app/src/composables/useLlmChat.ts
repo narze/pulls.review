@@ -3,11 +3,11 @@ import type { AssistantMessage } from '@earendil-works/pi-ai'
 import type { LlmSession } from '@pulls.review/core/cache'
 import type { DiffsPayload, GroupedResult } from '@pulls.review/core/types'
 import type { Ref } from 'vue'
-import { resolveModel } from '@pulls.review/core/analyze'
 import { diagnostics } from '@pulls.review/core/diagnostics'
 import { computed, getCurrentScope, onScopeDispose, ref, shallowRef, toRaw } from 'vue'
 import { t } from '../i18n'
 import { localizeError } from '../i18n/core-messages'
+import { resolveLlmModel } from '../state/llm-model'
 import { settings } from '../state/settings'
 
 export interface LlmChatOptions {
@@ -39,7 +39,7 @@ export function useLlmChat({ diff, session, onSessionChange, onGroupingUpdate }:
     const current = session.value
     if (!currentDiff || !current || isStreaming.value)
       return
-    const resolved = resolveModel(settings.value.llm)
+    const resolved = resolveLlmModel()
     if (!resolved) {
       error.value = localizeError(diagnostics.llmNotConfigured())
       return

@@ -1,8 +1,8 @@
 import type { AgentMessage } from '@earendil-works/pi-agent-core'
 import type { LlmAnalyzeOptions } from '@pulls.review/core/llm'
 import type { AnalyzeAdapter, DiffsPayload, GroupedResult } from '@pulls.review/core/types'
-import { resolveModel } from '@pulls.review/core/analyze'
 import { diagnostics } from '@pulls.review/core/diagnostics'
+import { resolveLlmModel } from '../../../state/llm-model'
 import { settings } from '../../../state/settings'
 
 export const NOT_COMPILED_MESSAGE = 'llm adapter is not compiled into this build (PR_LLM is off)'
@@ -13,7 +13,7 @@ export async function runLlmAnalysis(diff: DiffsPayload, options?: LlmAnalyzeOpt
   // is eliminated, so the embed bundle never discovers the pi runtime.
   if (!import.meta.env.PR_LLM)
     throw new Error(NOT_COMPILED_MESSAGE)
-  const resolved = resolveModel(settings.value.llm)
+  const resolved = resolveLlmModel()
   if (!resolved)
     throw diagnostics.llmNotConfigured()
 
@@ -26,7 +26,7 @@ export async function runLlmAnalysis(diff: DiffsPayload, options?: LlmAnalyzeOpt
 export const llmAdapter: AnalyzeAdapter = {
   id: 'llm',
   get available() {
-    return import.meta.env.PR_LLM && resolveModel(settings.value.llm) !== undefined
+    return import.meta.env.PR_LLM && resolveLlmModel() !== undefined
   },
   async analyze(diff, options) {
     return (await runLlmAnalysis(diff, options)).result
