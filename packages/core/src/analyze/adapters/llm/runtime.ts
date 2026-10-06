@@ -3,13 +3,14 @@ import type { ResolvedModel } from './model'
 import { createModels, createProvider } from '@earendil-works/pi-ai'
 import { anthropicMessagesApi } from '@earendil-works/pi-ai/api/anthropic-messages.lazy'
 import { openAICompletionsApi } from '@earendil-works/pi-ai/api/openai-completions.lazy'
+import { withOpenCodeSessionHeader } from '@earendil-works/pi-ai/providers/opencode-headers'
 
 /**
  * Browser CORS preflights fail on headers the endpoint does not allow-list: the SDKs'
  * x-stainless-* telemetry is rejected by the Vercel AI Gateway and most OpenAI-compatible
  * servers, and the gateway also rejects Anthropic's direct-browser-access opt-in.
  */
-export function createCorsSafeFetch(provider: string): typeof fetch {
+export function createCorsSafeFetch(provider: string, baseFetch: typeof fetch = (input, init) => fetch(input, init)): typeof fetch {
   const stripBrowserAccess = provider === 'vercel-ai-gateway'
   return (input, init) => {
     const headers = new Headers(init?.headers)
@@ -17,11 +18,18 @@ export function createCorsSafeFetch(provider: string): typeof fetch {
       if (name.startsWith('x-stainless-') || (stripBrowserAccess && name === 'anthropic-dangerous-direct-browser-access'))
         headers.delete(name)
     }
-    return fetch(input, { ...init, headers })
+    return baseFetch(input, { ...init, headers })
   }
 }
 
+/** OpenCode (Zen and Go) rejects a request without the conversation's session id in `x-opencode-session`. */
+function isOpenCode(baseUrl: string): boolean {
+  // A literal check, not `new URL()`: a malformed base URL fails at request time with a clearer error.
+  return /^https?:\/\/(?:[^/]+\.)?opencode\.ai(?:[:/]|$)/.test(baseUrl)
+}
+
 export function createStreamFn(resolved: ResolvedModel): StreamFn {
+  const completions = openAICompletionsApi()
   const models = createModels()
   models.setProvider(createProvider({
     id: resolved.model.provider,
@@ -29,9 +37,9 @@ export function createStreamFn(resolved: ResolvedModel): StreamFn {
     models: [resolved.model],
     api: {
       'anthropic-messages': anthropicMessagesApi(),
-      'openai-completions': openAICompletionsApi(),
+      'openai-completions': isOpenCode(resolved.model.baseUrl) ? withOpenCodeSessionHeader(completions) : completions,
     },
   }))
-  const corsSafeFetch = createCorsSafeFetch(resolved.model.provider)
+  const corsSafeFetch = createCorsSafeFetch(resolved.model.provider, resolved.fetch)
   return (model, context, options) => models.streamSimple(model, context, { ...options, fetch: corsSafeFetch })
 }

@@ -4,6 +4,8 @@ import type { LlmSettings } from './settings'
 export interface ResolvedModel {
   model: Model<Api>
   apiKey: string
+  /** How requests reach the model; the global `fetch` when unset. The local CLI relays them past CORS. */
+  fetch?: typeof fetch
 }
 
 function customModel(id: string, api: Api, provider: string, baseUrl: string): Model<Api> {
