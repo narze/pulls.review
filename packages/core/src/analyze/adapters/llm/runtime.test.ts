@@ -1,4 +1,5 @@
 import type { ResolvedModel } from './model'
+import { normalizeContext } from '@earendil-works/pi-ai'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import { resolveModel } from './model'
 import { createCorsSafeFetch, createStreamFn } from './runtime'
@@ -38,7 +39,7 @@ describe('createCorsSafeFetch', () => {
 /** Runs one request through `createStreamFn` and returns what reached `fetch`. */
 async function sentRequest(resolved: ResolvedModel): Promise<{ url: string, headers: Headers }> {
   const spy = vi.fn(async (_input: RequestInfo | URL, _init?: RequestInit) => new Response('{}', { status: 500 }))
-  const stream = createStreamFn({ ...resolved, fetch: spy })(resolved.model, { messages: [{ role: 'user', content: 'hi', timestamp: 0 }] }, { apiKey: resolved.apiKey, sessionId: 'github:o/r#1', maxRetries: 0 })
+  const stream = await createStreamFn({ ...resolved, fetch: spy })(resolved.model, normalizeContext({ messages: [{ role: 'user', content: 'hi', timestamp: 0 }] }), { apiKey: resolved.apiKey, sessionId: 'github:o/r#1', maxRetries: 0 })
   for await (const _event of stream) {
     // Drain until the (failed) response ends the stream.
   }

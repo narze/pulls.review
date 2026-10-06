@@ -22,14 +22,10 @@ export function createCorsSafeFetch(provider: string, baseFetch: typeof fetch = 
   }
 }
 
-/** OpenCode (Zen and Go) rejects a request without the conversation's session id in `x-opencode-session`. */
-function isOpenCode(baseUrl: string): boolean {
-  // A literal check, not `new URL()`: a malformed base URL fails at request time with a clearer error.
-  return /^https?:\/\/(?:[^/]+\.)?opencode\.ai(?:[:/]|$)/.test(baseUrl)
-}
-
 export function createStreamFn(resolved: ResolvedModel): StreamFn {
   const completions = openAICompletionsApi()
+  // OpenCode (Zen and Go) rejects a request without the conversation's session id in `x-opencode-session`.
+  const isOpenCode = /^https?:\/\/(?:[^/]+\.)?opencode\.ai(?:[:/]|$)/.test(resolved.model.baseUrl)
   const models = createModels()
   models.setProvider(createProvider({
     id: resolved.model.provider,
@@ -37,7 +33,7 @@ export function createStreamFn(resolved: ResolvedModel): StreamFn {
     models: [resolved.model],
     api: {
       'anthropic-messages': anthropicMessagesApi(),
-      'openai-completions': isOpenCode(resolved.model.baseUrl) ? withOpenCodeSessionHeader(completions) : completions,
+      'openai-completions': isOpenCode ? withOpenCodeSessionHeader(completions) : completions,
     },
   }))
   const corsSafeFetch = createCorsSafeFetch(resolved.model.provider, resolved.fetch)
