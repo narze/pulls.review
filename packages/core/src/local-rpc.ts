@@ -22,4 +22,28 @@ export const LOCAL_RPC = {
   storageRemoveItem: 'storage-remove-item',
   storageGetKeys: 'storage-get-keys',
   githubToken: 'github-token',
+  /** Sends one LLM request from the server, past the browser's CORS checks; its body streams over `LOCAL_STREAMS.llmBody`. */
+  llmFetch: 'llm-fetch',
 } as const
+
+/** Bare streaming channel names; devframe namespaces them like `LOCAL_RPC`. */
+export const LOCAL_STREAMS = {
+  /** A relayed LLM response body, as decoded text chunks. */
+  llmBody: 'llm-body',
+} as const
+
+/** The request `LOCAL_RPC.llmFetch` sends. */
+export interface RelayRequest {
+  url: string
+  method: string
+  headers: [string, string][]
+  body?: string
+}
+
+/** The response head `LOCAL_RPC.llmFetch` returns; the body follows on stream `streamId`. */
+export interface RelayResponse {
+  status: number
+  statusText: string
+  headers: [string, string][]
+  streamId: string
+}

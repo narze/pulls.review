@@ -1,8 +1,9 @@
 import process from 'node:process'
 import { fileURLToPath } from 'node:url'
-import { LOCAL_DEVFRAME_ID } from '@pulls.review/core/local-rpc'
+import { LOCAL_DEVFRAME_ID, LOCAL_STREAMS } from '@pulls.review/core/local-rpc'
 import { defineDevframe } from 'devframe'
 import pkg from '../package.json' with { type: 'json' }
+import { llmFetchFunction } from './llm-relay'
 import { localRpcFunctions } from './rpc'
 import { createRepoCacheDriver } from './storage'
 
@@ -34,5 +35,7 @@ export default defineDevframe({
     })
     for (const fn of functions)
       scope.rpc.register(fn)
+    // The body starts before the browser subscribes, so every chunk is kept for replay until it does.
+    scope.rpc.register(llmFetchFunction(scope.rpc.streaming.create<string>(LOCAL_STREAMS.llmBody, { replayWindow: 100_000 })))
   },
 })
