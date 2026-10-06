@@ -1,7 +1,7 @@
 import type { Commit, DiffsPayload } from '../types/diff'
 import type { DiffSource } from '../types/source'
 import type { LocalTarget } from './target'
-import { copyFile, mkdtemp, readFile, rm } from 'node:fs/promises'
+import { copyFile, mkdtemp, readFile, rm, stat, utimes } from 'node:fs/promises'
 import { devNull, tmpdir } from 'node:os'
 import { isAbsolute, join, relative, resolve } from 'node:path'
 import { computeContentHash, parsePatch } from '../patch-parser'
@@ -72,7 +72,12 @@ async function worktreeDiff(root: string, base: string): Promise<string> {
   try {
     const index = join(dir, 'index')
     const realIndex = resolve(root, (await git(root, ['rev-parse', '--git-path', 'index'])).trim())
-    await copyFile(realIndex, index).catch(() => {})
+    // Keep the index's mtime: git re-reads entries as new as the index ("racily clean"), and a
+    // fresh copy would make it trust stale stat data for a same-size edit in that second.
+    await copyFile(realIndex, index).then(async () => {
+      const { atime, mtime } = await stat(realIndex)
+      await utimes(index, atime, mtime)
+    }).catch(() => {})
     const env = { GIT_INDEX_FILE: index }
     await git(root, ['add', '--intent-to-add', '--', '.'], { env })
     return await git(root, [...DIFF_ARGS, base, '--'], { env })

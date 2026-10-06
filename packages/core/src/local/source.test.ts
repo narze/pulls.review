@@ -1,6 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { execFileSync } from 'node:child_process'
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, utimesSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
@@ -37,6 +37,23 @@ afterEach(() => {
 })
 
 describe('local source', () => {
+  it('sees an edit made in the same second as the commit, with the same size', async () => {
+    // Compare only whole-second mtimes and sizes, so the stat data can't tell the edit apart.
+    sh('config', 'core.checkStat', 'minimal')
+    const second = new Date(Math.floor(Date.now() / 1000) * 1000 - 60_000)
+    write('a.ts', 'one\n')
+    utimesSync(join(repo, 'a.ts'), second, second)
+    commit('init')
+    write('a.ts', 'two\n')
+    utimesSync(join(repo, 'a.ts'), second, second)
+    // The index is as old as the file: git must re-read this "racily clean" entry, not trust its stat.
+    utimesSync(join(repo, '.git', 'index'), second, second)
+
+    const diff = await createLocalSource({ cwd: repo, target: '' }).fetch()
+
+    expect(diff.files.map(f => [f.path, f.status])).toEqual([['a.ts', 'modified']])
+  })
+
   it('diffs the working tree against HEAD with untracked files, leaving the real index alone', async () => {
     write('a.ts', 'one\n')
     const head = commit('init')
