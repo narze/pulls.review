@@ -37,6 +37,9 @@ A pnpm workspace of three packages (`plans/08-core-and-cli.md`):
   Its SPA is the app's `PR_LOCAL` build (`vite.config.local.ts`), which swaps
   only the app context: the cache is an RPC driver over
   `<git-common-dir>/pulls-review` and the GitHub token comes from the server.
+  LLM requests go through the server too (`llm-fetch` RPC, body streamed over
+  the `llm-body` channel), so providers that refuse browser requests (no CORS,
+  like OpenCode Go) work there; on the site they cannot.
   It MUST NOT take over the Actions entry point, and the public site MUST NOT
   bundle the devframe client.
 
